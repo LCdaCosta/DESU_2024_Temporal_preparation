@@ -50,16 +50,8 @@ for i,file in enumerate (dataFiles):
     
     # Pour chaque feuille dans le fichier Excel
     for sheet_name in xls.sheet_names:
-        # if sheet_name !="exp session 1" and sheet_name !="exp session 2" and sheet_name !="exp session 3"  and sheet_name !="Exp session 1"and sheet_name !="Exp session 2"and sheet_name !="Exp session 3" :
-
-        # if sheet_name=="imp session 1" or sheet_name=="imp session 2" or sheet_name=="imp - session 1" or sheet_name=="imp - session 2"or sheet_name=="Imp session 1" or sheet_name=="Imp session 2":
-            # Lire la feuille
             df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
-            
-            # Extraire les lignes 14 à 113 et colonnes 1 à 76 (correspondant à A à BX)
-            df_extrait = df.iloc[:,:]  # Attention, pandas utilise des index 0-based (donc ligne 14 = index 13)
-            # df_extrait = df_extrait.drop(df_extrait.columns[55], axis=1)
-            
+            df_extrait = df.iloc[:,:] 
             df_extrait.columns = df_extrait.iloc[0]
             df_extrait=df_extrait.drop(0)
             
@@ -96,11 +88,9 @@ df=df_final
 print(len(np.unique(df["Subject"])))
 len(np.unique(df["Subject"]))
 
-
 df=df.dropna()
 df['Group']=df['Group']=="PTT"
 df['Group']= df['Group'].astype(int)
-
 
 
 # On vérifie que l'imputation par la moyenne ne change pas les résultats obtenus en droppant les NaN et les outliers
@@ -164,7 +154,6 @@ plt.legend()
 unique_foreperiods = df_Sz["Foreperiod"].unique()
 # plt.xticks(unique_foreperiods)
 plt.show()
-
 
 
 #• Listes pour stocker les résultats des différents modèles
@@ -248,7 +237,6 @@ for lag in lags:
     test_accuracy_list_Logreg.append(test_accuracy_LR)
     
     
-    
     #############################################
     ### Modeling avec SVC          ###
     #############################################
@@ -284,13 +272,11 @@ for lag in lags:
     test_accuracy_list_SVC.append(test_accuracy)
     
 
-
     #############################################
     ### Modeling avec RandomForestClassifier ###
     #############################################
     
     from sklearn.ensemble import RandomForestClassifier
-
 
     # ---- Validation croisée sur l'ensemble d'entraînement ----
     rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -305,11 +291,9 @@ for lag in lags:
     meanCV_accuracy_list_RF.append(cv_scores_rf.mean())
     
     # ---- Entraîner le modèle final sur tout l'ensemble d'entraînement ----
-    
     rf_model.fit(X_train, y_train)
     
     # ---- Évaluer le modèle final sur l'ensemble de test ----
-    
     # #############################################
     # ## Prédiction sur le test set ## 
     # #############################################
