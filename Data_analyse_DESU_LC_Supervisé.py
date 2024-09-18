@@ -297,7 +297,6 @@ plt.title("LogR Accuracy in function of lags")
 plt.legend()
 plt.show()
 
-
 # ## VISU RandomForest modele
 
 best_lag_index_rf = test_accuracy_list_RF.index(max(test_accuracy_list_RF))
@@ -314,24 +313,6 @@ plt.ylabel("Accuracy of RandomForest")
 plt.title("RandomForest Accuracy in function of lags")
 plt.legend()
 plt.show()
-
-# from sklearn.tree import export_graphviz
-# import graphviz
-
-# # Extraire un arbre de la forêt
-# tree = rf_model.estimators_[0]  # Choisir le premier arbre par exemple
-
-# # Exporter l'arbre sous forme de graphique
-# dot_data = export_graphviz(tree, out_file=None, 
-#                            feature_names=X.columns,  
-#                            class_names=["Not young", "Young"],  
-#                            filled=True, rounded=True,  
-#                            special_characters=True)  
-
-# # Utilisation de graphviz pour visualiser
-# graph = graphviz.Source(dot_data)  
-# graph.render("random_forest_tree")  # Sauvegarder l'image
-# graph  # Afficher l'image
 
 
 
