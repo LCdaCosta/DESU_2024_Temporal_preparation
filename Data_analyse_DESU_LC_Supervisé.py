@@ -37,11 +37,11 @@ len_df=[]
 
 # Pour chaque feuille dans le fichier Excel
 for sheet_name in xls.sheet_names:
-    # Lire la feuille
+
     df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
     
-    # Extraire les lignes 14 à 113 et colonnes 1 à 76 (correspondant à A à BX)
-    df_extrait = df.iloc[13:113, 0:76]  # Attention, pandas utilise des index 0-based (donc ligne 14 = index 13)
+    # Extraire les lignes 14 à 113 et colonnes 1 à 76 
+    df_extrait = df.iloc[13:113, 0:76]  
     df_extrait = df_extrait.drop(df_extrait.columns[55], axis=1)
     
     df_extrait.columns = df_extrait.iloc[0]
@@ -79,21 +79,21 @@ df= pd.concat(dfs, ignore_index=True)
 
 
 # On vérifie que l'imputation par la moyenne ne change pas les résultats obtenus en droppant les NaN et les outliers
-df_old=df[df["Age"]>15]
-df_young=df[df["Age"]<15]
+df_Adultes=df[df["Age"]>15]
+df_Enfants=df[df["Age"]<15]
 
 # Calculer la moyenne de Clean_RT pour chaque Foreperiod
-mean_RT_foreperiod_old = df_old.groupby("Foreperiod")["Clean_RT"].mean().reset_index()
-mean_RT_foreperiod_young = df_young.groupby("Foreperiod")["Clean_RT"].mean().reset_index()
+mean_RT_foreperiod_Adultes = df_Adultes.groupby("Foreperiod")["Clean_RT"].mean().reset_index()
+mean_RT_foreperiod_Enfants = df_Enfants.groupby("Foreperiod")["Clean_RT"].mean().reset_index()
 
-# Tracer les moyennes pour les deux groupes (old et young)
-plt.plot(mean_RT_foreperiod_old["Foreperiod"], mean_RT_foreperiod_old["Clean_RT"], label='Old')
-plt.plot(mean_RT_foreperiod_young["Foreperiod"], mean_RT_foreperiod_young["Clean_RT"], label='Young')
+# Tracer les moyennes pour les deux groupes (Adultes et Enfants)
+plt.plot(mean_RT_foreperiod_Adultes["Foreperiod"], mean_RT_foreperiod_Adultes["Clean_RT"], label='Adultes')
+plt.plot(mean_RT_foreperiod_Enfants["Foreperiod"], mean_RT_foreperiod_Enfants["Clean_RT"], label='Enfants')
 
 # Ajouter des labels et un titre
-plt.xlabel("Foreperiod")
-plt.ylabel("Mean Clean_RT")
-plt.title("Mean Clean_RT for Each Foreperiod (Old vs Young)")
+plt.xlabel("Foreperiod (ms)")
+plt.ylabel("Mean Clean_RT (ms)")
+plt.title("Mean Clean_RT for Each Foreperiod (Adultes vs Enfants)")
 plt.legend()
     
 # Afficher le graphique
@@ -117,7 +117,8 @@ meanCV_accuracy_list_RF=[]
 
 
 # On va itérer sur le nombre de lags (pas le plus économe mais bon..)
-lags=np.arange(0,98,1)
+lags=np.arange(0,99,1)
+
 for lag in lags:
     
     #############################################
@@ -126,16 +127,16 @@ for lag in lags:
     
     df=normalize_trial_numbers(df)
     df=create_lag_features(df,lag)
-    df["young"] = df['Age'] < 10
+    df["Enfants"] = df['Age'] < 10
     
     # But = Prédire si groupe = jeune ou vieux -> on définit la target y 
-    X = df.drop(columns=['Subject', 'young',"Age","Trial","Normalized_Trial"])  
-    y = df['young'].astype(int)  # Convertir les booléens en 0/1 pour le modèle
+    X = df.drop(columns=['Subject', 'Enfants',"Age","Trial","Normalized_Trial"])  
+    y = df['Enfants'].astype(int)  # Convertir les booléens en 0/1 pour le modèle
     
     # ---- Division des données en hold-out set (ensemble de test) et entraînement ----
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    
+    X_train_col=X_train.columns
     #############################################
     ### Preprocessing          ###
     #############################################
@@ -259,10 +260,45 @@ for lag in lags:
     test_accuracy_list_RF.append(test_accuracy_rf)
     
     print(f"\nAccuracy on hold-out test set (RandomForest): {test_accuracy_rf:.2f}")
+    
+    # Réinitialiser les index de X_test et y_test pour s'assurer qu'ils correspondent
+    X_test_with_labels = pd.DataFrame(X_test.copy()).reset_index(drop=True)
+    y_test_reset = pd.Series(y_test).reset_index(drop=True)
+    
+    # Ajouter les labels réels et prédits au DataFrame
+    X_test_with_labels['Actual'] = y_test_reset
+    X_test_with_labels['Predicted'] = y_pred_test_rf
+        
+    # Afficher les premières lignes pour vérifier
+    print(X_test_with_labels.head())
+    
+    from sklearn.tree import export_graphviz
+    import graphviz
+    
+    # Extraire un arbre de la forêt
+    g=0
+    tree = rf_model.estimators_[g]  # Sélectionne le premier arbre de la forêt
+    
+    X_train=pd.DataFrame(X_train)
+    X_train.columns=X_train_col
+    # Exporter l'arbre dans un format DOT
+    dot_data = export_graphviz(tree, 
+                               feature_names=X_train.columns,  # Noms des features
+                               class_names=rf_model.classes_.astype(str),  # Noms des classes
+                               filled=True, 
+                               rounded=True, 
+                               special_characters=True,
+                               max_depth=3)  # Limiter la profondeur à 3)
+    
+    # Utiliser graphviz pour visualiser l'arbre
+    graph = graphviz.Source(dot_data)
+    graph.render(f"random_forest_tree_{g}_lag{lag}")  # Sauvegarder l'arbre au format PDF
+    graph.view()  # Afficher l'arbre
 
 
 # ## VISU SVC modele
 
+test_accuracy_list_SVC=test_accuracy_list_SVC*100
 best_lag_index = test_accuracy_list_SVC.index(max(test_accuracy_list_SVC))
 best_lag = lags[best_lag_index]
 max_accuracy = max(test_accuracy_list_SVC)
@@ -274,18 +310,20 @@ plt.axvline(x=best_lag, color='red', linestyle='--', label=f"Best lag: {best_lag
 plt.axhline(y=max_accuracy, color='gold', linestyle='--', label=f"Max accuracy: {max_accuracy:.2f}")
 
 plt.xlabel("Amount of lags")
-plt.ylabel("Accuracy of SVC")
+plt.ylabel("Accuracy of SVC (%)")
 plt.title("SVC Accuracy in function of lags")
 plt.legend()
 plt.show()
 
 ## VISU LOG REG modele
 
+test_accuracy_list_Logreg=test_accuracy_list_Logreg*100
+
 best_lag_index = test_accuracy_list_Logreg.index(max(test_accuracy_list_Logreg))
 best_lag = lags[best_lag_index]
 max_accuracy = max(test_accuracy_list_Logreg)
 
-plt.plot(lags,test_accuracy_list_Logreg,label="Log. Reg Accuracy on hold-out test")
+plt.plot(lags,test_accuracy_list_Logreg,label="Log. Reg Accuracy on hold-out test (%)")
 # plt.plot(lags, LR_CV_mean_list, label="Mean CV")
 
 plt.axvline(x=best_lag, color='red', linestyle='--', label=f"Best lag: {best_lag}")
@@ -297,13 +335,15 @@ plt.title("LogR Accuracy in function of lags")
 plt.legend()
 plt.show()
 
+
 # ## VISU RandomForest modele
 
+test_accuracy_list_RF=test_accuracy_list_RF*100
 best_lag_index_rf = test_accuracy_list_RF.index(max(test_accuracy_list_RF))
 best_lag_rf = lags[best_lag_index_rf]
 max_accuracy_rf = max(test_accuracy_list_RF)
 
-plt.plot(lags, test_accuracy_list_RF, label="RandomForest Accuracy on hold-out test")
+plt.plot(lags, test_accuracy_list_RF, label="RandomForest Accuracy on hold-out test (%)")
 # plt.plot(lags, meanCV_accuracy_list_RF, label="RandomForest Mean CV Accuracy")
 
 plt.axvline(x=best_lag_rf, color='red', linestyle='--', label=f"Best lag: {best_lag_rf}")
